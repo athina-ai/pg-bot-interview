@@ -12,20 +12,6 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     const stream = await OpenAIStream(prompt, apiKey);
-
-    const reader = stream.getReader();
-    let responseBuffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      responseBuffer += new TextDecoder().decode(value);
-    }
-    reader.releaseLock();
-    console.log(responseBuffer)
-
     return new Response(stream);
   } catch (error) {
     console.error(error);

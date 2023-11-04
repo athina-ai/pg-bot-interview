@@ -97,43 +97,53 @@ export default function Home() {
 
     setChunks(results);
 
-    const resultsString = results?.map((d: any) => d.content).join("\n\n");
+    const resultsString =
+      results && results.length > 0
+        ? results
+            .slice(0, 1)
+            .map((d: any) => d.content)
+            .join("\n\n")
+        : null;
     const prompt = endent`
     Use the following passages to provide an answer to the query: "${query}"
 
     ${resultsString}
     `;
 
-    const answerResponse = await fetch("/api/answer", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ prompt, apiKey }),
-    });
+    if (resultsString) {
+      const answerResponse = await fetch("/api/answer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt, apiKey }),
+      });
 
-    if (!answerResponse.ok) {
+      if (!answerResponse.ok) {
+        setLoading(false);
+        throw new Error(answerResponse.statusText);
+      }
+
+      const data = answerResponse.body;
+
+      if (!data) {
+        return;
+      }
+
       setLoading(false);
-      throw new Error(answerResponse.statusText);
-    }
 
-    const data = answerResponse.body;
+      const reader = data.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
 
-    if (!data) {
-      return;
-    }
-
-    setLoading(false);
-
-    const reader = data.getReader();
-    const decoder = new TextDecoder();
-    let done = false;
-
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      const chunkValue = decoder.decode(value);
-      setAnswer((prev) => prev + chunkValue);
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value);
+        setAnswer((prev) => prev + chunkValue);
+      }
+    } else {
+      setAnswer("No answer found");
     }
 
     inputRef.current?.focus();
